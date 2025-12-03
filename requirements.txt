@@ -1,13 +1,14 @@
 
-streamlit==1.28.0
-numpy>=2.0.0
-pandas>=2.2.0
-scikit-learn==1.5.2
-matplotlib==3.9.2
-joblib==1.4.2
-seaborn==0.13.2
-plotly==5.18.0
-shap==0.43.0
+streamlit
+numpy
+pandas
+scikit-learn
+matplotlib
+joblib
+seaborn
+plotly
+shap
+
 
 
 
