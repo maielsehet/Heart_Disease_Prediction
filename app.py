@@ -13,14 +13,13 @@ st.caption("Hager • Mai • Menna • Shahd")
 @st.cache_resource
 def load_artifacts():
     xgb = joblib.load("models/xgb_model.pkl")
-    rf = joblib.load("models/rf_model.pkl")
     lg = joblib.load("models/lg_model.pkl")
     dbscan = joblib.load("models/dbscan_model.pkl")
     kmeans = joblib.load("models/kmeans_model.pkl")
-    scaler = joblib.load("models/scaler.pkl")          # سكالر واحد فقط
-    return xgb, rf, lg, dbscan, kmeans, scaler
+    scaler = joblib.load("models/scaler.pkl")  # سكالر واحد فقط
+    return xgb, lg, dbscan, kmeans, scaler
 
-xgb_model, rf_model, lg_model, dbscan_model, kmeans_model, scaler = load_artifacts()
+xgb_model, lg_model, dbscan_model, kmeans_model, scaler = load_artifacts()
 
 # ============ SIDEBAR: GLOBAL CONTROLS ============
 st.sidebar.header("⚙ Settings")
@@ -32,30 +31,26 @@ mode = st.sidebar.radio(
 
 model_choice = st.sidebar.selectbox(
     "Choose model",
-    ["XGBoost", "Random Forest", "Logistic Regression"],
+    ["XGBoost", "Logistic Regression"],
 )
 
 model_map = {
     "XGBoost": xgb_model,
-    "Random Forest": rf_model,
     "Logistic Regression": lg_model,
 }
 current_model = model_map[model_choice]
 
 # ============ FEATURES ============
-# الأعمدة المستخدمة في الكلاسترينج (لازم تطابق تدريب KMeans)
 cluster_features = [
     "age", "gender", "height", "weight", "ap_hi", "ap_lo",
     "cholesterol", "gluc", "smoke", "alco", "active",
 ]
 
-# الأعمدة اللي اتعمل لها scaling في تدريب نماذج التصنيف
 num_cols = ["age", "height", "weight"]
 
-# ============ HAGER: PATIENT FORM (11 FEATURES) ============
+# ============ PATIENT FORM ============
 def patient_form():
     st.subheader("👤 Patient clinical data")
-
     c1, c2, c3 = st.columns(3)
     with c1:
         age = st.number_input("Age (years)", 20, 90, 50)
@@ -112,16 +107,16 @@ def preprocess(df):
     df_proc[num_cols] = scaler.transform(df_proc[num_cols])
     return df_proc
 
-# ============ MAI: REAL-TIME PREDICTION + CI ============
+# ============ REAL-TIME PREDICTION ============
 def predict_single(df_raw):
     df_raw = add_default_id_year(df_raw)
     df = preprocess(df_raw)
 
     proba = current_model.predict_proba(df)[0, 1]
 
+    # Ensemble of the remaining models
     probs_models = [
         xgb_model.predict_proba(df)[0, 1],
-        rf_model.predict_proba(df)[0, 1],
         lg_model.predict_proba(df)[0, 1],
     ]
     mean_p = np.mean(probs_models)
@@ -139,30 +134,21 @@ def predict_single(df_raw):
     st.progress(float(proba))
     st.write("⬆ High risk" if proba > 0.5 else "⬇ Low risk")
 
-# ============ MENNA: CLUSTER VISUALIZATION ============
+# ============ CLUSTER VISUALIZATION ============
 def cluster_view(df_raw):
     st.subheader("🎯 Cluster assignment")
-
-    # نسخة من بيانات المريض
     df_cluster = df_raw.copy()
-
-    # ========== 1) Apply scaler ONLY on numerical columns ==========
     df_scaled = df_cluster.copy()
     df_scaled[num_cols] = scaler.transform(df_scaled[num_cols])
+    X_k = df_scaled[cluster_features]
 
-    # ========== 2) Select the full 11 KMeans features ==========
-    X_k = df_scaled[cluster_features]   # هنا كل الأعمدة اللي اتدرب عليها KMeans
-
-    # ========== 3) Predict clusters ==========
     k_cluster = int(kmeans_model.predict(X_k)[0])
     d_label = int(dbscan_model.fit_predict(X_k)[0])
 
-    # ========== 4) Display results ==========
     c1, c2 = st.columns(2)
     c1.metric("KMeans cluster", k_cluster)
     c2.metric("DBSCAN label", d_label if d_label != -1 else "Noise")
 
-    # ========== 5) Visualization ==========
     feat_for_plot = df_raw[["age", "ap_hi"]].copy()
     feat_for_plot["cluster"] = k_cluster
 
@@ -176,26 +162,21 @@ def cluster_view(df_raw):
 
     st.plotly_chart(fig, use_container_width=True)
 
-
-# ============ SHAHD: SHAP + BATCH ============
+# ============ SHAP EXPLANATION ============
 def shap_explain(df_raw):
     st.subheader("🔍 SHAP explanation (XGBoost)")
-
     df_raw = add_default_id_year(df_raw)
     df = preprocess(df_raw)
 
     explainer = shap.TreeExplainer(xgb_model)
     shap_values = explainer(df)
 
-    # Create a stable Matplotlib figure
     import matplotlib.pyplot as plt
     fig, ax = plt.subplots(figsize=(10, 6))
-
     shap.plots.waterfall(shap_values[0], show=False)
-    
     st.pyplot(fig)
 
-
+# ============ BATCH MODE ============
 def batch_mode():
     st.subheader("📂 Batch prediction for multiple patients")
     file = st.file_uploader("Upload CSV with 11 clinical columns", type=["csv"])
