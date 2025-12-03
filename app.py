@@ -90,8 +90,7 @@ def patient_form():
     return df
 
 
-
-    def preprocess(df):
+def preprocess(df):
     df_proc = df.copy()
 
     safe_cols = [c for c in num_cols if c in df_proc.columns]
@@ -252,5 +251,6 @@ elif mode == "Cluster exploration":
 
 else:  # Batch upload
     batch_mode()
+
 
 
