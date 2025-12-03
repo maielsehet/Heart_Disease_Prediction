@@ -90,22 +90,47 @@ def patient_form():
     return df
 
 # ============ COMMON PREPROCESSING ============
+# def add_default_id_year(df_raw: pd.DataFrame) -> pd.DataFrame:
+#     df = df_raw.copy()
+#     df["id"] = 0
+#     df["year"] = 2020
+#     cols_order = [
+#         "id", "age", "gender", "height", "weight",
+#         "ap_hi", "ap_lo", "cholesterol", "gluc",
+#         "smoke", "alco", "active", "year",
+#     ]
+#     df = df[cols_order]
+#     return df
+
+# def preprocess(df):
+#     df_proc = df.copy()
+#     df_proc[num_cols] = scaler.transform(df_proc[num_cols])
+#     return df_proc
+
 def add_default_id_year(df_raw: pd.DataFrame) -> pd.DataFrame:
     df = df_raw.copy()
-    df["id"] = 0
-    df["year"] = 2020
-    cols_order = [
+
+    # Add missing columns safely
+    if "id" not in df.columns:
+        df["id"] = range(1, len(df) + 1)
+
+    if "year" not in df.columns:
+        df["year"] = 2020
+
+    expected_cols = [
         "id", "age", "gender", "height", "weight",
         "ap_hi", "ap_lo", "cholesterol", "gluc",
         "smoke", "alco", "active", "year",
     ]
-    df = df[cols_order]
+
+    # Keep only columns that actually exist
+    available_cols = [col for col in expected_cols if col in df.columns]
+
+    # Reorder using only existing columns
+    df = df[available_cols]
+
     return df
 
-def preprocess(df):
-    df_proc = df.copy()
-    df_proc[num_cols] = scaler.transform(df_proc[num_cols])
-    return df_proc
 
 # ============ REAL-TIME PREDICTION ============
 def predict_single(df_raw):
@@ -208,3 +233,4 @@ elif mode == "Cluster exploration":
 
 else:  # Batch upload
     batch_mode()
+
