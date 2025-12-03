@@ -226,7 +226,8 @@ def batch_mode():
     if file is None:
         st.info("Template columns: age, gender, height, weight, ap_hi, ap_lo, cholesterol, gluc, smoke, alco, active")
         return
-    df_raw = pd.read_csv(file)
+    df_raw = pd.read_csv(file, sep=";")
+
     df_raw = add_default_id_year(df_raw)
     df = preprocess(df_raw)
     probs = current_model.predict_proba(df)[:, 1]
@@ -251,6 +252,7 @@ elif mode == "Cluster exploration":
 
 else:  # Batch upload
     batch_mode()
+
 
 
 
